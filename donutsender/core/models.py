@@ -35,8 +35,8 @@ class User(AbstractBaseUser):
     username = models.CharField(max_length=20, unique=True)
     email = models.EmailField(_('email address'), unique=True)
 
-    # avatar = models.ImageField(upload_to='avatars/')
-    # background_image = models.ImageField(upload_to='background_images/')
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
+    background_image = models.ImageField(upload_to='background_images/', blank=True, null=True)
 
     balance = models.DecimalField(default=0, decimal_places=2, max_digits=12, validators=[MinValueValidator(Decimal(0))])
     preferable_currency = models.CharField(max_length=3, default='BYN')
