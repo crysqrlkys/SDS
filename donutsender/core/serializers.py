@@ -1,10 +1,12 @@
-
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
-
-from donutsender.core.models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
-        model = User
-        fields = ('url', 'username', 'email', 'avatar')
+        model = get_user_model()
+        fields = ('id', 'url', 'username', 'email', 'avatar', 'password')
+        extra_kwargrs = {
+            'password': {'write_only': True},
+            'id': {'read_only': True},
+        }

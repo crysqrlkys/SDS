@@ -44,8 +44,10 @@ class User(AbstractBaseUser):
     bio = models.CharField(max_length=1000, default='Write a message to your donators :)')
     button_text = models.CharField(max_length=50, default='Send')
     message_max_length = models.PositiveIntegerField(default=300, validators=[MaxValueValidator(1000)])
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['username', 'email']
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
+
     objects = UserManager()
 
     def __str__(self):
