@@ -67,13 +67,13 @@ REST_AUTH_REGISTER_SERIALIZERS = {
 }
 
 REST_AUTH_SERIALIZERS = {
-    'USER_DETAILS_SERIALIZER': 'donutsender.core.serializers.UserSerializer'
+    'USER_DETAILS_SERIALIZER': 'donutsender.core.serializers.UserSerializer',
+    'LOGIN_SERIALIZER': 'donutsender.core.serializers.LoginUserSerializer'
 }
 
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_EMAIL_VERIFICATION = 'none'
 
 AUTH_USER_MODEL = 'core.User'
 

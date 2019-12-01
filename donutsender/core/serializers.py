@@ -10,3 +10,9 @@ class UserSerializer(serializers.ModelSerializer):
             'password': {'write_only': True},
             'id': {'read_only': True},
         }
+
+
+class LoginUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = get_user_model()
+        fields = ('username', 'email')
