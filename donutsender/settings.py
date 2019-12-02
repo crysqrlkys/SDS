@@ -68,7 +68,6 @@ REST_AUTH_REGISTER_SERIALIZERS = {
 
 REST_AUTH_SERIALIZERS = {
     'USER_DETAILS_SERIALIZER': 'donutsender.core.serializers.UserSerializer',
-    'LOGIN_SERIALIZER': 'donutsender.core.serializers.LoginUserSerializer'
 }
 
 ACCOUNT_AUTHENTICATION_METHOD = 'email'

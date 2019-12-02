@@ -26,9 +26,3 @@ class UserSerializer(serializers.ModelSerializer):
             user_ser.is_valid()
             self.instance = self.create(user_ser.validated_data)
         return self.instance
-
-
-class LoginUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ('username', 'password')
