@@ -1,14 +1,21 @@
-from donutsender.core.models import User
 from rest_framework import serializers
+
+from donutsender.core.models import User, CashRegister
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'url', 'username', 'email', 'avatar', 'password')
-        extra_kwargrs = {
+        fields = (
+            'id',
+            'url',
+            'username',
+            'email',
+            'avatar',
+            'password'
+        )
+        extra_kwargs = {
             'password': {'write_only': True},
-            'id': {'read_only': True},
         }
 
     def create(self, validated_data):
@@ -26,3 +33,10 @@ class UserSerializer(serializers.ModelSerializer):
             user_ser.is_valid()
             self.instance = self.create(user_ser.validated_data)
         return self.instance
+
+
+class CashRegisterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CashRegister
+        fields = ('amount', )
+
