@@ -1,7 +1,7 @@
 from decimal import Decimal
 
-from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import DO_NOTHING
@@ -9,7 +9,7 @@ from django.utils.translation import gettext as _
 
 
 class User(AbstractUser):
-    username = models.CharField(max_length=20, unique=True)
+    username = models.CharField(max_length=20, unique=True, validators=[UnicodeUsernameValidator])
     email = models.EmailField(_('email address'), unique=True)
 
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
@@ -39,12 +39,13 @@ class Notifications(models.Model):
 
 
 class Payment(models.Model):
+    from_name = models.CharField(max_length=20, default='Anonymous', help_text='Required. 20 characters or fewer.')
     from_user = models.ForeignKey('User', related_name='payments_from_me', blank=True, null=True, on_delete=DO_NOTHING)
     to_user = models.ForeignKey('User', related_name='payments_to_me', on_delete=DO_NOTHING)
     message = models.CharField(max_length=300)
     money = models.DecimalField(default=5, decimal_places=2, max_digits=12)
 
-    REQUIRED_FIELDS = ['to_user']
+    REQUIRED_FIELDS = ['from_name', 'to_user']
 
     def __str__(self):
-        return self.from_user.username if self.from_user else 'Anonymous' + f'donated {self.money} to' + self.to_user.username
+        return self.from_name + f'donated {self.money} to' + self.to_user.username
