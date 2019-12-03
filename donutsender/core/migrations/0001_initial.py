@@ -33,9 +33,6 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             },
-            managers=[
-                ('objects', donutsender.core.models.UserManager()),
-            ],
         ),
         migrations.CreateModel(
             name='Payment',

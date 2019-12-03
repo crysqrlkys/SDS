@@ -1,37 +1,14 @@
 from decimal import Decimal
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import DO_NOTHING
 from django.utils.translation import gettext as _
 
 
-class UserManager(BaseUserManager):
-    use_in_migrations = True
-
-    def create_user(self, username, email, password=None):
-        user = self.model(
-            username=username,
-            email=self.normalize_email(email),
-        )
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, username, email, password):
-        user = self.create_user(
-            username=username,
-            email=email,
-            password=password,
-        )
-        user.staff = True
-        user.admin = True
-        user.save(using=self._db)
-        return user
-
-
-class User(AbstractBaseUser):
+class User(AbstractUser):
     username = models.CharField(max_length=20, unique=True)
     email = models.EmailField(_('email address'), unique=True)
 
@@ -44,9 +21,9 @@ class User(AbstractBaseUser):
     bio = models.CharField(max_length=1000, default='Write a message to your donators :)')
     button_text = models.CharField(max_length=50, default='Send')
     message_max_length = models.PositiveIntegerField(default=300, validators=[MaxValueValidator(1000)])
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['username', 'email']
-    objects = UserManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
     def __str__(self):
         return self.username
