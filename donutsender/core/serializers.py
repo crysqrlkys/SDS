@@ -37,7 +37,19 @@ class UserSerializer(serializers.ModelSerializer):
         return self.instance
 
 
+class UserPageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+
+        fields = (
+            'username',
+            'avatar',
+        )
+
+
 class PaymentPageSerializer(serializers.ModelSerializer):
+    user = UserPageSerializer()
+
     class Meta:
         model = PaymentPage
         fields = (
@@ -49,10 +61,6 @@ class PaymentPageSerializer(serializers.ModelSerializer):
             'button_text',
             'message_max_length'
         )
-
-        extra_kwargs = {
-            'user': {'read_only': True}
-        }
 
 
 class PaymentSerializer(serializers.ModelSerializer):

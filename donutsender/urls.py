@@ -9,6 +9,7 @@ from donutsender.core import views
 router = routers.DefaultRouter()
 router.register(r'users', views.UserViewSet)
 router.register(r'payments', views.PaymentViewSet)
+router.register(r'd', views.PaymentPageViewSet)
 
 auth_patterns = [
     path('register/', RegisterView.as_view()),

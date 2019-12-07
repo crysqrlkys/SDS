@@ -30,11 +30,21 @@ class UserViewSet(viewsets.ModelViewSet):
 class PaymentPageViewSet(viewsets.ModelViewSet):
     queryset = PaymentPage.objects.all()
     serializer_class = PaymentPageSerializer
+    permission_classes = (ActionBasedPermission,)
     action_permissions = {
         IsAdminOrSelf: ['create'],
         IsAdminUser: ['list'],
         AllowAny: ['retrieve']
     }
+
+    def retrieve(self, request, *args, **kwargs):
+        username = kwargs.get('pk')
+        user = get_user_model().objects.get(username=username)
+
+        payment_page = user.paymentpage
+
+        serializer = self.get_serializer(payment_page)
+        return Response(serializer.data)
 
 
 class PaymentViewSet(viewsets.GenericViewSet,
