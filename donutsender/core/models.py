@@ -16,10 +16,20 @@ class User(AbstractUser, BaseModel):
     email = models.EmailField(_('email address'), unique=True)
 
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    background_image = models.ImageField(upload_to='background_images/', blank=True, null=True)
 
     balance = models.DecimalField(default=0, decimal_places=2, max_digits=12,
                                   validators=[MinValueValidator(Decimal(0))])
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
+
+    def __str__(self):
+        return self.username
+
+
+class PaymentPage(BaseModel):
+    user = models.OneToOneField('User', on_delete=DO_NOTHING)
+    background_image = models.ImageField(upload_to='background_images/', blank=True, null=True)
     preferable_currency = models.CharField(max_length=3, default='BYN')
     minimum_donate_sum = models.DecimalField(default=1, decimal_places=2, max_digits=12,
                                              validators=[MinValueValidator(Decimal(0.1))])
@@ -27,11 +37,8 @@ class User(AbstractUser, BaseModel):
     button_text = models.CharField(max_length=50, default='Send')
     message_max_length = models.PositiveIntegerField(default=300, validators=[MaxValueValidator(1000)])
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
-
     def __str__(self):
-        return self.username
+        return f'{self.user.username}\'s payment page'
 
 
 class Notifications(BaseModel):

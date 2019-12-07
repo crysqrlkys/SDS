@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from donutsender.core.models import User, CashRegister, Payment
+from donutsender.core.models import User, CashRegister, Payment, PaymentPage
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -8,16 +8,16 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
 
         fields = (
-            'id',
-            'url',
             'username',
             'email',
             'avatar',
+            'balance',
             'password'
         )
-        
+
         extra_kwargs = {
             'password': {'write_only': True},
+            'balance': {'read_only': True}
         }
 
     def create(self, validated_data):
@@ -37,16 +37,31 @@ class UserSerializer(serializers.ModelSerializer):
         return self.instance
 
 
+class PaymentPageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentPage
+        fields = (
+            'user',
+            'background_image',
+            'preferable_currency',
+            'minimum_donate_sum',
+            'bio',
+            'button_text',
+            'message_max_length'
+        )
+
+        extra_kwargs = {
+            'user': {'read_only': True}
+        }
+
+
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = ('from_user', 'from_name', 'to_user', 'message', 'money')
 
-    def is_valid(self, raise_exception=False):
-        super().is_valid()
 
-        
 class CashRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CashRegister
-        fields = ('amount', )
+        fields = ('amount',)
