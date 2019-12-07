@@ -58,7 +58,15 @@ class PaymentPageSerializer(serializers.ModelSerializer):
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
-        fields = ('from_user', 'from_name', 'to_user', 'message', 'money')
+        fields = (
+            'id',
+            'from_user',
+            'from_name',
+            'to_user',
+            'message',
+            'money',
+            'currency'
+        )
 
 
 class CashRegisterSerializer(serializers.ModelSerializer):

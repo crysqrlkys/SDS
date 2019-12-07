@@ -30,8 +30,8 @@ class User(AbstractUser, BaseModel):
 class PaymentPage(BaseModel):
     user = models.OneToOneField('User', on_delete=DO_NOTHING)
     background_image = models.ImageField(upload_to='background_images/', blank=True, null=True)
-    preferable_currency = models.CharField(max_length=3, default='BYN')
-    minimum_donate_sum = models.DecimalField(default=1, decimal_places=2, max_digits=12,
+    preferable_currency = models.CharField(max_length=3, default='USD')
+    minimum_donate_sum = models.DecimalField(default=Decimal(0.1), decimal_places=2, max_digits=12,
                                              validators=[MinValueValidator(Decimal(0.1))])
     bio = models.CharField(max_length=1000, default='Write a message to your donators :)')
     button_text = models.CharField(max_length=50, default='Send')
@@ -56,8 +56,9 @@ class Payment(BaseModel):
     to_user = models.ForeignKey('User', related_name='payments_to_me', on_delete=DO_NOTHING)
     message = models.CharField(max_length=300)
     money = models.DecimalField(default=5, decimal_places=2, max_digits=12)
+    currency = models.CharField(max_length=3, default='USD')
 
-    REQUIRED_FIELDS = ['from_name', 'to_user']
+    REQUIRED_FIELDS = ['from_name', 'to_user', 'currency']
 
     def __str__(self):
         return f'{self.from_name} donated {self.money} to {self.to_user.username}'
