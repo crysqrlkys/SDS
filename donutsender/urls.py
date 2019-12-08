@@ -10,6 +10,7 @@ router = routers.DefaultRouter()
 router.register(r'users', views.UserViewSet)
 router.register(r'payments', views.PaymentViewSet)
 router.register(r'd', views.PaymentPageViewSet)
+router.register(r'withdrawal', views.WithdrawalViewSet)
 
 auth_patterns = [
     path('register/', RegisterView.as_view()),

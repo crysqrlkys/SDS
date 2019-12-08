@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from donutsender.core.models import User, CashRegister, Payment, PaymentPage
+from donutsender.core.models import User, CashRegister, Payment, PaymentPage, Withdrawal
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -74,6 +74,18 @@ class PaymentSerializer(serializers.ModelSerializer):
             'message',
             'money',
             'currency'
+        )
+
+
+class WithdrawalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Withdrawal
+        fields = (
+            'id',
+            'money',
+            'method',
+            'additional_info',
+            'user'
         )
 
 

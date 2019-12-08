@@ -7,12 +7,12 @@ from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.mixins import RetrieveModelMixin, ListModelMixin, CreateModelMixin
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED
 
-from donutsender.core.models import Payment, PaymentPage
-from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer
+from donutsender.core.models import Payment, PaymentPage, Withdrawal, CashRegister
+from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer
 from donutsender.core.helpers.action_based_permissions import ActionBasedPermission
 from donutsender.core.helpers.custom_permissions import IsSenderOrReceiverOrAdmin, IsAdminOrSelf
 
@@ -95,6 +95,10 @@ class PaymentViewSet(viewsets.GenericViewSet,
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
+    def _add_to_balance(self, user, money):
+        user.balance += money
+        user.save()
+
     def _validate_over_payment_page(self, receiver, data):
         receivers_payment_page, _ = PaymentPage.objects.get_or_create(user_id=receiver)
 
@@ -115,10 +119,18 @@ class PaymentViewSet(viewsets.GenericViewSet,
             'donate_sum': receivers_payment_page.minimum_donate_sum <= request_data['sum']
         }
 
-        return all(list(validation_results.values()))
+        valid = all(list(validation_results.values()))
+
+        if valid:
+            self._add_to_balance(user=receivers_payment_page.user, money=money)
+        return valid
 
     def create(self, request, *args, **kwargs):
-        sender = int(request.data.get('from_user'))
+        sender = request.data.get('from_user')
+        if sender == '':
+            sender = None
+        else:
+            sender = int(sender)
 
         if sender and request.user.id != sender:
             raise PermissionDenied
@@ -132,3 +144,93 @@ class PaymentViewSet(viewsets.GenericViewSet,
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=HTTP_201_CREATED, headers=headers)
+
+
+class WithdrawalViewSet(viewsets.GenericViewSet,
+                        CreateModelMixin,
+                        ListModelMixin,
+                        RetrieveModelMixin):
+    queryset = Withdrawal.objects.all()
+    serializer_class = WithdrawalSerializer
+    permission_classes = (ActionBasedPermission,)
+    action_permissions = {
+        IsAuthenticated: ['create'],
+        IsAdminOrSelf: ['retrieve', 'list'],
+    }
+
+    def _commission_charge(self, money, old_money, user):
+        percent = Decimal(0.05)
+        cash_register = CashRegister.load()
+        cash_register.amount += money * percent
+        cash_register.save()
+
+        user.balance -= old_money
+        user.save()
+
+    def _validate_over_currency(self, user, data):
+        users_payment_page, _ = PaymentPage.objects.get_or_create(user_id=user)
+
+        user_currency = users_payment_page.preferable_currency
+        usd = 'USD'
+
+        money = Decimal(data.get('money'))
+        money_in_user_currency = money
+
+        # same currency
+        if money > users_payment_page.user.balance:
+            return False
+
+        if usd != user_currency:
+            converter = CurrencyConverter()
+            money = converter.convert(money, user_currency, usd)
+
+        money_after_commission_charge = money - (money * Decimal(0.05))
+
+        if money_after_commission_charge >= 5:
+            self._commission_charge(money, old_money=money_in_user_currency, user=users_payment_page.user)
+            return True
+        return False
+
+    def create(self, request, *args, **kwargs):
+        user = int(request.data.get('user'))
+
+        if user != request.user.id:
+            raise PermissionDenied
+
+        if not self._validate_over_currency(user, request.data):
+            raise ValidationError
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=HTTP_201_CREATED, headers=headers)
+
+    def list(self, request, *args, **kwargs):
+        if request.user.is_staff:
+            queryset = self.filter_queryset(self.get_queryset())
+        else:
+            queryset = Withdrawal.objects.filter(user=request.user)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        request_user = request.user
+        if request_user.is_staff:
+            instance = self.get_object()
+        else:
+            pk = kwargs.get('pk')
+            qs = Withdrawal.objects.filter(pk=pk)
+            instance = get_object_or_404(qs)
+
+            if instance.user.id != request_user.id:
+                raise PermissionDenied
+
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
