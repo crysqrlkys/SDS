@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-from currency_converter import CurrencyConverter
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -11,6 +10,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED
 
+from donutsender.core.helpers.converter import CurrencyConverter
 from donutsender.core.models import Payment, PaymentPage, Withdrawal, CashRegister
 from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer
 from donutsender.core.helpers.action_based_permissions import ActionBasedPermission
@@ -107,6 +107,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
         money = Decimal(data.get('money'))
         if needed_currency != request_currency:
             converter = CurrencyConverter()
+
             money = converter.convert(money, request_currency, needed_currency)
 
         request_data = {
