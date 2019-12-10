@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from donutsender.core.models import User, CashRegister, Payment
+from donutsender.core.models import User, CashRegister, Payment, PaymentPage, Withdrawal
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -8,16 +8,16 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
 
         fields = (
-            'id',
-            'url',
             'username',
             'email',
             'avatar',
+            'balance',
             'password'
         )
-        
+
         extra_kwargs = {
             'password': {'write_only': True},
+            'balance': {'read_only': True}
         }
 
     def create(self, validated_data):
@@ -37,16 +37,59 @@ class UserSerializer(serializers.ModelSerializer):
         return self.instance
 
 
+class UserPageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+
+        fields = (
+            'username',
+            'avatar',
+        )
+
+
+class PaymentPageSerializer(serializers.ModelSerializer):
+    user = UserPageSerializer()
+
+    class Meta:
+        model = PaymentPage
+        fields = (
+            'user',
+            'background_image',
+            'preferable_currency',
+            'minimum_donate_sum',
+            'bio',
+            'button_text',
+            'message_max_length'
+        )
+
+
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
-        fields = ('from_user', 'from_name', 'to_user', 'message', 'money')
+        fields = (
+            'id',
+            'from_user',
+            'from_name',
+            'to_user',
+            'message',
+            'money',
+            'currency'
+        )
 
-    def is_valid(self, raise_exception=False):
-        super().is_valid()
 
-        
+class WithdrawalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Withdrawal
+        fields = (
+            'id',
+            'money',
+            'method',
+            'additional_info',
+            'user'
+        )
+
+
 class CashRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CashRegister
-        fields = ('amount', )
+        fields = ('amount',)
