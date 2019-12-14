@@ -7,16 +7,17 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.mixins import RetrieveModelMixin, ListModelMixin, CreateModelMixin
+from rest_framework.mixins import *
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED
+from rest_framework import status
 
 from donutsender.core.helpers.converter import CurrencyConverter
-from donutsender.core.models import Payment, PaymentPage, Withdrawal, CashRegister
-from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer
+from donutsender.core.models import Payment, PaymentPage, Withdrawal, CashRegister, Settings
+from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer, \
+    SettingsSerializer
 from donutsender.core.helpers.action_based_permissions import ActionBasedPermission
-from donutsender.core.helpers.custom_permissions import IsSenderOrReceiverOrAdmin, IsAdminOrSelf
+from donutsender.core.helpers.custom_permissions import IsSenderOrReceiverOrAdmin, IsAdminOrSelf, IsAdminOrOwner
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -34,19 +35,30 @@ class PaymentPageViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentPageSerializer
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
-        IsAdminOrSelf: ['create'],
-        IsAdminUser: ['list'],
-        AllowAny: ['retrieve']
+        IsAuthenticated: ['create'],
+        IsAdminUser: ['list', 'destroy'],
+        AllowAny: ['retrieve'],
+        IsAdminOrOwner: ['update', 'partial_update'],
     }
 
+    def get_object(self):
+        username = self.kwargs.get('pk')
+        payment_page = get_user_model().objects.get(username=username).paymentpage
+        self.check_object_permissions(self.request, payment_page)
+        return payment_page
+
     def retrieve(self, request, *args, **kwargs):
-        username = kwargs.get('pk')
-        user = get_user_model().objects.get(username=username)
-
-        payment_page = user.paymentpage
-
+        payment_page = self.get_object()
         serializer = self.get_serializer(payment_page)
         return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        if request.user.paymentpage:
+            return Response(data={'error': 'Can\'t create two or more payment pages'}, status=status.HTTP_409_CONFLICT)
+        super().create(request, *args, **kwargs)
 
 
 class PaymentViewSet(viewsets.GenericViewSet,
@@ -146,7 +158,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class WithdrawalViewSet(viewsets.GenericViewSet,
@@ -158,7 +170,7 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
         IsAuthenticated: ['create'],
-        IsAdminOrSelf: ['retrieve', 'list'],
+        AllowAny: ['retrieve', 'list'],
     }
 
     def _commission_charge(self, money, old_money, user):
@@ -208,7 +220,7 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def list(self, request, *args, **kwargs):
         if request.user.is_staff:
@@ -238,3 +250,14 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
 
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+class SettingsViewSet(viewsets.GenericViewSet,
+                      RetrieveModelMixin,
+                      UpdateModelMixin):
+    queryset = Settings.objects.all()
+    serializer_class = SettingsSerializer
+    permission_classes = (ActionBasedPermission,)
+    action_permissions = {
+        IsAdminOrSelf: ['retrieve', 'update', 'partial_update'],
+    }

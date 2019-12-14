@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from donutsender.core.models import User, CashRegister, Payment, PaymentPage, Withdrawal
+from donutsender.core.models import User, CashRegister, Payment, PaymentPage, Withdrawal, Settings
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -8,6 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
 
         fields = (
+            'id',
             'username',
             'email',
             'avatar',
@@ -17,7 +18,8 @@ class UserSerializer(serializers.ModelSerializer):
 
         extra_kwargs = {
             'password': {'write_only': True},
-            'balance': {'read_only': True}
+            'balance': {'read_only': True},
+            'id': {'read_only': True},
         }
 
     def create(self, validated_data):
@@ -48,7 +50,7 @@ class UserPageSerializer(serializers.ModelSerializer):
 
 
 class PaymentPageSerializer(serializers.ModelSerializer):
-    user = UserPageSerializer()
+    user = UserPageSerializer(read_only=True)
 
     class Meta:
         model = PaymentPage
@@ -93,3 +95,8 @@ class CashRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CashRegister
         fields = ('amount',)
+
+
+class SettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Settings

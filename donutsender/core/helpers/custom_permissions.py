@@ -9,3 +9,8 @@ class IsSenderOrReceiverOrAdmin(BasePermission):
 class IsAdminOrSelf(BasePermission):
     def has_object_permission(self, request, view, obj):
         return bool(request.user.is_staff or request.user.id == obj.id)
+
+
+class IsAdminOrOwner(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return bool(request.user.is_staff or request.user.id == obj.user.id)
