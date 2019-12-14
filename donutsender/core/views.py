@@ -1,7 +1,5 @@
-from datetime import datetime
 from decimal import Decimal
 
-import pytz
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -12,8 +10,9 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
+from donutsender.core.helpers.commission_handler import CommissionHandler
 from donutsender.core.helpers.converter import CurrencyConverter
-from donutsender.core.models import Payment, PaymentPage, Withdrawal, CashRegister, Settings
+from donutsender.core.models import Payment, PaymentPage, Withdrawal, Settings
 from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer, \
     SettingsSerializer
 from donutsender.core.helpers.action_based_permissions import ActionBasedPermission
@@ -173,51 +172,20 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
         AllowAny: ['retrieve', 'list'],
     }
 
-    def _commission_charge(self, money, old_money, user):
-        percent = Decimal(0.05)
-        cash_register = CashRegister.load()
-        cash_register.amount += money * percent
-        cash_register.save()
-
-        user.balance -= old_money * (1 - percent)
-        user.last_withdraw = datetime.now().replace(tzinfo=pytz.utc)
-        user.save()
-
-    def _validate_over_currency(self, user, data):
-        users_payment_page, _ = PaymentPage.objects.get_or_create(user_id=user)
-
-        user_currency = users_payment_page.preferable_currency
-        usd = 'USD'
-
-        money = Decimal(data.get('money'))
-        money_in_user_currency = money
-
-        # same currency
-        if money > users_payment_page.user.balance:
-            return False
-
-        if usd != user_currency:
-            converter = CurrencyConverter()
-            money = converter.convert(money, user_currency, usd)
-
-        money_after_commission_charge = money - (money * Decimal(0.05))
-
-        if money_after_commission_charge >= 5:
-            self._commission_charge(money, old_money=money_in_user_currency, user=users_payment_page.user)
-            return True
-        return False
-
     def create(self, request, *args, **kwargs):
         user = int(request.data.get('user'))
 
         if user != request.user.id:
             raise PermissionDenied
 
-        if not self._validate_over_currency(user, request.data):
-            raise ValidationError
-
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        commission_handler = CommissionHandler(user)
+
+        if not commission_handler.validate_over_currency(request.data):
+            raise ValidationError
+
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
