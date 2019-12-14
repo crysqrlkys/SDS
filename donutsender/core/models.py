@@ -20,6 +20,9 @@ class User(AbstractUser, BaseModel):
     balance = models.DecimalField(default=0, decimal_places=2, max_digits=12,
                                   validators=[MinValueValidator(Decimal(0))])
 
+    last_withdraw = models.DateTimeField(auto_now_add=True, null=True)
+    auto_withdraw_is_enabled = models.BooleanField(default=False)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 

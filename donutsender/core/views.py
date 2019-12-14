@@ -1,5 +1,7 @@
+from datetime import datetime
 from decimal import Decimal
 
+import pytz
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -165,7 +167,8 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
         cash_register.amount += money * percent
         cash_register.save()
 
-        user.balance -= old_money
+        user.balance -= old_money * (1 - percent)
+        user.last_withdraw = datetime.now().replace(tzinfo=pytz.utc)
         user.save()
 
     def _validate_over_currency(self, user, data):
