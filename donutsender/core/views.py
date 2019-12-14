@@ -46,11 +46,6 @@ class PaymentPageViewSet(viewsets.ModelViewSet):
         self.check_object_permissions(self.request, payment_page)
         return payment_page
 
-    def retrieve(self, request, *args, **kwargs):
-        payment_page = self.get_object()
-        serializer = self.get_serializer(payment_page)
-        return Response(serializer.data)
-
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
@@ -72,41 +67,15 @@ class PaymentViewSet(viewsets.GenericViewSet,
         IsSenderOrReceiverOrAdmin: ['retrieve', 'list'],
     }
 
-    def list(self, request, *args, **kwargs):
-        if request.user.is_staff:
-            queryset = self.filter_queryset(self.get_queryset())
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            queryset = self.filter_queryset(self.queryset)
         else:
-            queryset = Payment.objects.filter(
-                Q(from_user_id=request.user.id) |
-                Q(to_user_id=request.user.id)
+            queryset = self.queryset.filter(
+                Q(from_user_id=self.request.user.id) |
+                Q(to_user_id=self.request.user.id)
             )
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        request_user = request.user
-        if request_user.is_staff:
-            instance = self.get_object()
-        else:
-            pk = kwargs.get('pk')
-            qs = Payment.objects.filter(pk=pk)
-            instance = get_object_or_404(qs)
-
-            if instance.from_user:
-                if instance.from_user.id != request_user.id:
-                    raise PermissionDenied
-
-            if instance.to_user.id != request_user.id:
-                raise PermissionDenied
-
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        return queryset
 
     def _add_to_balance(self, user, money):
         user.balance += money
@@ -141,7 +110,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
 
     def create(self, request, *args, **kwargs):
         sender = request.data.get('from_user')
-        if sender == '':
+        if not sender:  # can be None or empty
             sender = None
         else:
             sender = int(sender)
@@ -221,11 +190,20 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
 
 
 class SettingsViewSet(viewsets.GenericViewSet,
+                      ListModelMixin,
                       RetrieveModelMixin,
-                      UpdateModelMixin):
+                      UpdateModelMixin,
+                      CreateModelMixin):
     queryset = Settings.objects.all()
     serializer_class = SettingsSerializer
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
-        IsAdminOrSelf: ['retrieve', 'update', 'partial_update'],
+        IsAdminUser: ['list'],
+        IsAdminOrOwner: ['retrieve', 'update', 'partial_update'],
     }
+
+    def get_object(self):
+        settings = self.kwargs.get('pk')
+        instance = self.get_queryset().get(id=settings)
+        self.check_object_permissions(self.request, instance)
+        return instance

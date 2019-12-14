@@ -11,6 +11,7 @@ router.register(r'users', views.UserViewSet)
 router.register(r'payments', views.PaymentViewSet)
 router.register(r'd', views.PaymentPageViewSet)
 router.register(r'withdrawal', views.WithdrawalViewSet)
+router.register(r'settings', views.SettingsViewSet)
 
 auth_patterns = [
     path('register/', RegisterView.as_view()),
