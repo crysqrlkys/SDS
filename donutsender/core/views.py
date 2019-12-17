@@ -26,9 +26,15 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
-        IsAdminOrSelf: ['retrieve'],
-        IsAdminUser: ['list']
+        IsAdminOrSelf: ['retrieve', 'list'],
     }
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            queryset = self.filter_queryset(self.queryset)
+        else:
+            queryset = self.queryset.filter(id=self.request.user.id)
+        return queryset
 
 
 class PaymentPageViewSet(viewsets.ModelViewSet):
@@ -120,6 +126,8 @@ class PaymentViewSet(viewsets.GenericViewSet,
             raise PermissionDenied
 
         receiver = User.objects.filter(username=request.data.get('to_user')).first()
+        if not receiver:
+            return Response({'error': 'Receiver not found'}, status=status.HTTP_404_NOT_FOUND)
         if not self._validate_over_payment_page(receiver.id, request.data):
             raise ValidationError
 
@@ -127,14 +135,12 @@ class PaymentViewSet(viewsets.GenericViewSet,
         from_user = User.objects.filter(username=data.pop('from_user')).first()
         to_user = User.objects.filter(username=data.pop('to_user')).first()
 
-        if not to_user:
-            return Response({'error': 'Receiver not found'}, status=status.HTTP_404_NOT_FOUND)
-
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer, from_user=from_user, to_user=to_user)
         headers = self.get_success_headers(data)
         send_donation_notification_email(receiver, serializer.data)
+        # ser_data = self.get_serializer_class()(instance).data
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer, **kwargs):
@@ -210,9 +216,16 @@ class SettingsViewSet(viewsets.GenericViewSet,
     serializer_class = SettingsSerializer
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
-        IsAdminUser: ['list'],
-        IsAdminOrOwner: ['retrieve', 'update', 'partial_update'],
+        IsAdminUser: ['retrieve'],
+        IsAdminOrOwner: ['update', 'partial_update', 'list']
     }
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            queryset = self.filter_queryset(self.queryset)
+        else:
+            queryset = self.queryset.filter(user=self.request.user)
+        return queryset
 
     def get_object(self):
         settings = self.kwargs.get('pk')
