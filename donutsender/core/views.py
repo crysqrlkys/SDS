@@ -5,16 +5,18 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.mixins import RetrieveModelMixin, ListModelMixin, CreateModelMixin
+from rest_framework.mixins import *
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import HTTP_201_CREATED
+from rest_framework import status
 
+from donutsender.core.helpers.commission_handler import CommissionHandler
 from donutsender.core.helpers.converter import CurrencyConverter
-from donutsender.core.models import Payment, PaymentPage, Withdrawal, CashRegister
-from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer
+from donutsender.core.models import Payment, PaymentPage, Withdrawal, Settings
+from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer, \
+    SettingsSerializer
 from donutsender.core.helpers.action_based_permissions import ActionBasedPermission
-from donutsender.core.helpers.custom_permissions import IsSenderOrReceiverOrAdmin, IsAdminOrSelf
+from donutsender.core.helpers.custom_permissions import IsSenderOrReceiverOrAdmin, IsAdminOrSelf, IsAdminOrOwner
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -32,19 +34,25 @@ class PaymentPageViewSet(viewsets.ModelViewSet):
     serializer_class = PaymentPageSerializer
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
-        IsAdminOrSelf: ['create'],
-        IsAdminUser: ['list'],
-        AllowAny: ['retrieve']
+        IsAuthenticated: ['create'],
+        IsAdminUser: ['list', 'destroy'],
+        AllowAny: ['retrieve'],
+        IsAdminOrOwner: ['update', 'partial_update'],
     }
 
-    def retrieve(self, request, *args, **kwargs):
-        username = kwargs.get('pk')
-        user = get_user_model().objects.get(username=username)
+    def get_object(self):
+        username = self.kwargs.get('pk')
+        payment_page = get_user_model().objects.get(username=username).paymentpage
+        self.check_object_permissions(self.request, payment_page)
+        return payment_page
 
-        payment_page = user.paymentpage
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
-        serializer = self.get_serializer(payment_page)
-        return Response(serializer.data)
+    def create(self, request, *args, **kwargs):
+        if request.user.paymentpage:
+            return Response(data={'error': 'Can\'t create two or more payment pages'}, status=status.HTTP_409_CONFLICT)
+        super().create(request, *args, **kwargs)
 
 
 class PaymentViewSet(viewsets.GenericViewSet,
@@ -59,41 +67,15 @@ class PaymentViewSet(viewsets.GenericViewSet,
         IsSenderOrReceiverOrAdmin: ['retrieve', 'list'],
     }
 
-    def list(self, request, *args, **kwargs):
-        if request.user.is_staff:
-            queryset = self.filter_queryset(self.get_queryset())
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            queryset = self.filter_queryset(self.queryset)
         else:
-            queryset = Payment.objects.filter(
-                Q(from_user_id=request.user.id) |
-                Q(to_user_id=request.user.id)
+            queryset = self.queryset.filter(
+                Q(from_user_id=self.request.user.id) |
+                Q(to_user_id=self.request.user.id)
             )
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, *args, **kwargs):
-        request_user = request.user
-        if request_user.is_staff:
-            instance = self.get_object()
-        else:
-            pk = kwargs.get('pk')
-            qs = Payment.objects.filter(pk=pk)
-            instance = get_object_or_404(qs)
-
-            if instance.from_user:
-                if instance.from_user.id != request_user.id:
-                    raise PermissionDenied
-
-            if instance.to_user.id != request_user.id:
-                raise PermissionDenied
-
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        return queryset
 
     def _add_to_balance(self, user, money):
         user.balance += money
@@ -128,7 +110,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
 
     def create(self, request, *args, **kwargs):
         sender = request.data.get('from_user')
-        if sender == '':
+        if not sender:  # can be None or empty
             sender = None
         else:
             sender = int(sender)
@@ -144,7 +126,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class WithdrawalViewSet(viewsets.GenericViewSet,
@@ -156,41 +138,8 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
         IsAuthenticated: ['create'],
-        IsAdminOrSelf: ['retrieve', 'list'],
+        AllowAny: ['retrieve', 'list'],
     }
-
-    def _commission_charge(self, money, old_money, user):
-        percent = Decimal(0.05)
-        cash_register = CashRegister.load()
-        cash_register.amount += money * percent
-        cash_register.save()
-
-        user.balance -= old_money
-        user.save()
-
-    def _validate_over_currency(self, user, data):
-        users_payment_page, _ = PaymentPage.objects.get_or_create(user_id=user)
-
-        user_currency = users_payment_page.preferable_currency
-        usd = 'USD'
-
-        money = Decimal(data.get('money'))
-        money_in_user_currency = money
-
-        # same currency
-        if money > users_payment_page.user.balance:
-            return False
-
-        if usd != user_currency:
-            converter = CurrencyConverter()
-            money = converter.convert(money, user_currency, usd)
-
-        money_after_commission_charge = money - (money * Decimal(0.05))
-
-        if money_after_commission_charge >= 5:
-            self._commission_charge(money, old_money=money_in_user_currency, user=users_payment_page.user)
-            return True
-        return False
 
     def create(self, request, *args, **kwargs):
         user = int(request.data.get('user'))
@@ -198,14 +147,17 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
         if user != request.user.id:
             raise PermissionDenied
 
-        if not self._validate_over_currency(user, request.data):
-            raise ValidationError
-
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        commission_handler = CommissionHandler(user)
+
+        if not commission_handler.validate_over_currency(request.data):
+            raise ValidationError
+
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def list(self, request, *args, **kwargs):
         if request.user.is_staff:
@@ -235,3 +187,23 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
 
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+class SettingsViewSet(viewsets.GenericViewSet,
+                      ListModelMixin,
+                      RetrieveModelMixin,
+                      UpdateModelMixin,
+                      CreateModelMixin):
+    queryset = Settings.objects.all()
+    serializer_class = SettingsSerializer
+    permission_classes = (ActionBasedPermission,)
+    action_permissions = {
+        IsAdminUser: ['list'],
+        IsAdminOrOwner: ['retrieve', 'update', 'partial_update'],
+    }
+
+    def get_object(self):
+        settings = self.kwargs.get('pk')
+        instance = self.get_queryset().get(id=settings)
+        self.check_object_permissions(self.request, instance)
+        return instance

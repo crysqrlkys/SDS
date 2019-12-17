@@ -20,6 +20,8 @@ class User(AbstractUser, BaseModel):
     balance = models.DecimalField(default=0, decimal_places=2, max_digits=12,
                                   validators=[MinValueValidator(Decimal(0))])
 
+    last_withdraw = models.DateTimeField(auto_now_add=True, null=True)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
@@ -41,16 +43,17 @@ class PaymentPage(BaseModel):
         return f'{self.user.username}\'s payment page'
 
 
-class Notifications(BaseModel):
+class Settings(BaseModel):
     user = models.OneToOneField('User', on_delete=DO_NOTHING)
     email_is_enabled = models.BooleanField(default=True)
     pop_up_is_enabled = models.BooleanField(default=True)
+    auto_withdraw_is_enabled = models.BooleanField(default=False)
 
     class Meta:
-        verbose_name_plural = 'notifications'
+        verbose_name_plural = 'settings'
 
     def __str__(self):
-        return f'Notification settings for: {self.user.username}'
+        return f'Settings for: {self.user.username}'
 
 
 class Payment(BaseModel):

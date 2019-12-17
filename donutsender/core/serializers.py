@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from donutsender.core.models import User, CashRegister, Payment, PaymentPage, Withdrawal
+from donutsender.core.models import User, CashRegister, Payment, PaymentPage, Withdrawal, Settings
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -8,6 +8,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
 
         fields = (
+            'id',
             'username',
             'email',
             'avatar',
@@ -17,13 +18,16 @@ class UserSerializer(serializers.ModelSerializer):
 
         extra_kwargs = {
             'password': {'write_only': True},
-            'balance': {'read_only': True}
+            'balance': {'read_only': True},
+            'id': {'read_only': True},
         }
 
     def create(self, validated_data):
         user = User.objects.create(**validated_data)
         user.set_password(validated_data['password'])
         user.save()
+        settings = Settings.objects.create(user=user)
+        settings.save()
         return user
 
     def save(self, request):
@@ -48,7 +52,7 @@ class UserPageSerializer(serializers.ModelSerializer):
 
 
 class PaymentPageSerializer(serializers.ModelSerializer):
-    user = UserPageSerializer()
+    user = UserPageSerializer(read_only=True)
 
     class Meta:
         model = PaymentPage
@@ -64,6 +68,9 @@ class PaymentPageSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
+    from_user = UserPageSerializer()
+    to_user = UserPageSerializer()
+
     class Meta:
         model = Payment
         fields = (
@@ -93,3 +100,15 @@ class CashRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CashRegister
         fields = ('amount',)
+
+
+class SettingsSerializer(serializers.ModelSerializer):
+    user = UserPageSerializer()
+
+    class Meta:
+        model = Settings
+        fields = ('id', 'email_is_enabled', 'pop_up_is_enabled', 'auto_withdraw_is_enabled', 'user',)
+        extra_kwargs = {
+            'user': {'read_only': True},
+            'id': {'read_only': True},
+        }
