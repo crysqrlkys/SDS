@@ -118,6 +118,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
             sender_id = sender.id
         if sender_id and request.user.id != sender_id:
             raise PermissionDenied
+
         receiver = User.objects.filter(username=request.data.get('to_user')).first()
         if not self._validate_over_payment_page(receiver.id, request.data):
             raise ValidationError
@@ -168,7 +169,6 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
 
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        send_withdrawal_notification_email(user, serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def list(self, request, *args, **kwargs):
