@@ -165,10 +165,7 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
         if request.user.is_staff:
             queryset = self.filter_queryset(self.get_queryset())
         else:
-            if request.user.is_authenticated:
-                queryset = Withdrawal.objects.filter(user=request.user)
-            else:
-                raise PermissionDenied
+            queryset = Withdrawal.objects.filter(user=request.user)
 
         page = self.paginate_queryset(queryset)
         if page is not None:

@@ -28,6 +28,8 @@ class UserSerializer(serializers.ModelSerializer):
         user.save()
         settings = Settings.objects.create(user=user)
         settings.save()
+        payment_page = PaymentPage.objects.create(user=user)
+        payment_page.save()
         return user
 
     def save(self, request):
