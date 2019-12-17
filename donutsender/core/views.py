@@ -12,6 +12,7 @@ from rest_framework import status
 
 from donutsender.core.helpers.commission_handler import CommissionHandler
 from donutsender.core.helpers.converter import CurrencyConverter
+from donutsender.core.helpers.send_email import send_withdrawal_notification_email
 from donutsender.core.models import Payment, PaymentPage, Withdrawal, Settings
 from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer, \
     SettingsSerializer
@@ -138,7 +139,7 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
         IsAuthenticated: ['create'],
-        AllowAny: ['retrieve', 'list'],
+        IsAdminOrSelf: ['retrieve', 'list'],
     }
 
     def create(self, request, *args, **kwargs):
@@ -157,13 +158,17 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
 
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
+        send_withdrawal_notification_email(user, serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def list(self, request, *args, **kwargs):
         if request.user.is_staff:
             queryset = self.filter_queryset(self.get_queryset())
         else:
-            queryset = Withdrawal.objects.filter(user=request.user)
+            if request.user.is_authenticated:
+                queryset = Withdrawal.objects.filter(user=request.user)
+            else:
+                raise PermissionDenied
 
         page = self.paginate_queryset(queryset)
         if page is not None:
