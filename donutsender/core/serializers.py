@@ -82,11 +82,13 @@ class PaymentSerializer(serializers.ModelSerializer):
             'to_user',
             'message',
             'money',
-            'currency'
+            'currency',
+            'created_at'
         )
         extra_kwargs = {
             'from_user': {'required': False},
             'to_user': {'required': False},
+            'created_at': {'read_only': True}
         }
 
 
