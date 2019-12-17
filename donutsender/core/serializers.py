@@ -70,8 +70,8 @@ class PaymentPageSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
-    from_user = UserPageSerializer()
-    to_user = UserPageSerializer()
+    # from_user = UserPaymentSerializer()
+    # to_user = UserPaymentSerializer()
 
     class Meta:
         model = Payment

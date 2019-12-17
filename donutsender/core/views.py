@@ -12,7 +12,7 @@ from rest_framework import status
 
 from donutsender.core.helpers.commission_handler import CommissionHandler
 from donutsender.core.helpers.converter import CurrencyConverter
-from donutsender.core.helpers.send_email import send_withdrawal_notification_email
+from donutsender.core.helpers.send_email import send_withdrawal_notification_email, send_donation_notification_email
 from donutsender.core.models import Payment, PaymentPage, Withdrawal, Settings
 from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer, \
     SettingsSerializer
@@ -127,6 +127,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
+        send_donation_notification_email(receiver, serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
