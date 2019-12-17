@@ -51,6 +51,9 @@ class UserPageSerializer(serializers.ModelSerializer):
             'username',
             'avatar',
         )
+        extra_kwargs = {
+            'avatar': {'read_only': True},
+        }
 
 
 class PaymentPageSerializer(serializers.ModelSerializer):
@@ -70,9 +73,6 @@ class PaymentPageSerializer(serializers.ModelSerializer):
 
 
 class PaymentSerializer(serializers.ModelSerializer):
-    # from_user = UserPaymentSerializer()
-    # to_user = UserPaymentSerializer()
-
     class Meta:
         model = Payment
         fields = (
@@ -84,6 +84,10 @@ class PaymentSerializer(serializers.ModelSerializer):
             'money',
             'currency'
         )
+        extra_kwargs = {
+            'from_user': {'required': False},
+            'to_user': {'required': False},
+        }
 
 
 class WithdrawalSerializer(serializers.ModelSerializer):

@@ -17,7 +17,6 @@ def send_withdrawal_notification_email(user, data):
 
 
 def send_donation_notification_email(receiver, data):
-    receiver = User.objects.get(pk=receiver)
     if receiver.settings.email_is_enabled:
         send_mail(
             subject='You have a new donation',
