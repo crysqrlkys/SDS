@@ -7,10 +7,10 @@ from rest_auth.views import LogoutView, LoginView
 from donutsender.core import views
 
 router = routers.DefaultRouter()
-router.register(r'users', views.UserViewSet)
-router.register(r'payments', views.PaymentViewSet)
+router.register(r'user', views.UserViewSet)
+router.register(r'donate', views.PaymentViewSet)
 router.register(r'd', views.PaymentPageViewSet)
-router.register(r'withdrawal', views.WithdrawalViewSet)
+router.register(r'withdraw', views.WithdrawalViewSet)
 router.register(r'settings', views.SettingsViewSet)
 
 auth_patterns = [
@@ -23,5 +23,4 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include(router.urls)),
     path('', include(auth_patterns)),
-
 ]

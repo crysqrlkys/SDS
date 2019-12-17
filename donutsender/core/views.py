@@ -8,11 +8,13 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.mixins import *
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import *
 from rest_framework import status
 
 from donutsender.core.helpers.commission_handler import CommissionHandler
 from donutsender.core.helpers.converter import CurrencyConverter
-from donutsender.core.models import Payment, PaymentPage, Withdrawal, Settings
+from donutsender.core.helpers.send_email import send_withdrawal_notification_email, send_donation_notification_email
+from donutsender.core.models import Payment, PaymentPage, Withdrawal, Settings, User
 from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer, \
     SettingsSerializer
 from donutsender.core.helpers.action_based_permissions import ActionBasedPermission
@@ -109,24 +111,34 @@ class PaymentViewSet(viewsets.GenericViewSet,
         return valid
 
     def create(self, request, *args, **kwargs):
-        sender = request.data.get('from_user')
+        sender = User.objects.filter(username=request.data.get('from_user')).first()
         if not sender:  # can be None or empty
-            sender = None
+            sender_id = None
         else:
-            sender = int(sender)
-
-        if sender and request.user.id != sender:
+            sender_id = sender.id
+        if sender_id and request.user.id != sender_id:
             raise PermissionDenied
 
-        receiver = request.data.get('to_user')
-        if not self._validate_over_payment_page(receiver, request.data):
+        receiver = User.objects.filter(username=request.data.get('to_user')).first()
+        if not self._validate_over_payment_page(receiver.id, request.data):
             raise ValidationError
 
-        serializer = self.get_serializer(data=request.data)
+        data = request.data
+        from_user = User.objects.filter(username=data.pop('from_user')).first()
+        to_user = User.objects.filter(username=data.pop('to_user')).first()
+
+        if not to_user:
+            return Response({'error': 'Receiver not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
+        self.perform_create(serializer, from_user=from_user, to_user=to_user)
+        headers = self.get_success_headers(data)
+        send_donation_notification_email(receiver, serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def perform_create(self, serializer, **kwargs):
+        return Payment.objects.create(**kwargs, **serializer.validated_data)
 
 
 class WithdrawalViewSet(viewsets.GenericViewSet,
@@ -138,7 +150,7 @@ class WithdrawalViewSet(viewsets.GenericViewSet,
     permission_classes = (ActionBasedPermission,)
     action_permissions = {
         IsAuthenticated: ['create'],
-        AllowAny: ['retrieve', 'list'],
+        IsAdminOrSelf: ['retrieve', 'list'],
     }
 
     def create(self, request, *args, **kwargs):
