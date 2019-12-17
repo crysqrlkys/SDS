@@ -60,6 +60,7 @@ class Payment(BaseModel):
     from_name = models.CharField(max_length=20, default='Anonymous', help_text='Required. 20 characters or fewer.')
     from_user = models.ForeignKey('User', related_name='payments_from_me', blank=True, null=True, on_delete=DO_NOTHING)
     to_user = models.ForeignKey('User', related_name='payments_to_me', on_delete=DO_NOTHING)
+    to_name = models.CharField(max_length=50, default='Lost')
     message = models.CharField(max_length=300)
     money = models.DecimalField(default=Decimal(0.1), decimal_places=2, max_digits=12,
                                 validators=[MinValueValidator(Decimal(0.1))])

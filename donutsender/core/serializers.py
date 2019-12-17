@@ -80,6 +80,7 @@ class PaymentSerializer(serializers.ModelSerializer):
             'from_user',
             'from_name',
             'to_user',
+            'to_name',
             'message',
             'money',
             'currency',
@@ -88,6 +89,7 @@ class PaymentSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'from_user': {'required': False},
             'to_user': {'required': False},
+            'to_name': {'required': False},
             'created_at': {'read_only': True}
         }
 
