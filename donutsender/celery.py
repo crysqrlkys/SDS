@@ -12,7 +12,7 @@ app.config_from_object('django.conf:settings')
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 
 app.conf.beat_schedule = {
-    'withdraw-every-15-mins': {
+    'withdraw-every-30-mins': {
         'task': 'withdraw',
         'schedule': crontab(minute=30),
     },
