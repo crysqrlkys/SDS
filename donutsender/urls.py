@@ -1,9 +1,11 @@
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
 from rest_auth.registration.views import RegisterView
 from rest_auth.views import LogoutView, LoginView
 
+from donutsender import settings
 from donutsender.core import views
 
 router = routers.DefaultRouter()
@@ -24,3 +26,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('', include(auth_patterns)),
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
