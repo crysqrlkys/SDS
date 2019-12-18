@@ -46,7 +46,7 @@ class PaymentPage(BaseModel):
 class Settings(BaseModel):
     user = models.OneToOneField('User', on_delete=DO_NOTHING)
     email_is_enabled = models.BooleanField(default=True)
-    pop_up_is_enabled = models.BooleanField(default=True)
+    pop_up_is_enabled = models.BooleanField(default=False)
     auto_withdraw_is_enabled = models.BooleanField(default=False)
 
     class Meta:

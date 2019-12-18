@@ -14,6 +14,6 @@ class CurrencyConverter:
             ('amount', money),
         )
         response = requests.get('https://xecdapi.xe.com/v1/convert_to.json/', params=params,
-                                auth=('legalname155443637', 'rb8drvvi8fv8mritknr8ehr7j2'))
+                                auth=('somekindofacompany251085016', '3ohjgqr834m76i4vd92g14sqjf'))
         data = response.json()
         return data['from'][0]['mid']
