@@ -19,7 +19,7 @@ class CommissionHandler:
         cash_register.amount += money * self.percent
         cash_register.save()
 
-        self.user.balance -= old_money * (1 - self.percent)
+        self.user.balance -= old_money
         self.user.last_withdraw = datetime.now().replace(tzinfo=pytz.utc)
         self.user.save()
 
@@ -44,6 +44,6 @@ class CommissionHandler:
             return False
 
         self.commission_charge(money, old_money=money_in_user_currency)
-        send_withdrawal_notification_email(users_payment_page, money_in_user_currency * (1 - self.percent))
+        send_withdrawal_notification_email(users_payment_page, money_in_user_currency - (money_in_user_currency * self.percent))
         return True
 
