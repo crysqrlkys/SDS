@@ -1,24 +1,54 @@
 from decimal import Decimal
 
+import requests
+from allauth.account import app_settings as allauth_settings
+from allauth.account.utils import complete_signup
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from pyrebase import pyrebase
+from pyrebase.pyrebase import Firebase
+from rest_auth.app_settings import create_token
+from rest_auth.registration.views import RegisterView as RegView
 from rest_framework import viewsets
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import *
 from rest_framework.mixins import *
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.exceptions import *
-from rest_framework import status
 
+from donutsender.core.helpers.action_based_permissions import ActionBasedPermission
 from donutsender.core.helpers.commission_handler import CommissionHandler
 from donutsender.core.helpers.converter import CurrencyConverter
-from donutsender.core.helpers.send_email import send_withdrawal_notification_email, send_donation_notification_email
-from donutsender.core.models import Payment, PaymentPage, Withdrawal, Settings, User
-from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer, \
-    SettingsSerializer
-from donutsender.core.helpers.action_based_permissions import ActionBasedPermission
 from donutsender.core.helpers.custom_permissions import IsSenderOrReceiverOrAdmin, IsAdminOrSelf, IsAdminOrOwner
+from donutsender.core.helpers.send_email import send_donation_notification_email
+from donutsender.core.models import Payment, PaymentPage, Withdrawal, Settings, User, FirebaseUser
+from donutsender.core.serializers import UserSerializer, PaymentSerializer, PaymentPageSerializer, WithdrawalSerializer, \
+    SettingsSerializer, FirebaseUserSerializer
+
+config = {
+    'apiKey': 'AIzaSyC_vTRZm3ASrWyKRbj4GrR-vIVQ84kmckM',
+    'authDomain': 'donutsender-d6c61.firebaseapp.com',
+    'databaseURL': 'https://donutsender-d6c61.firebaseio.com',
+    'projectId': 'donutsender-d6c61',
+    'storageBucket': 'donutsender-d6c61.appspot.com',
+    'messagingSenderId': '681713800522',
+    'appId': '1:681713800522:web:70a04dc8ffec580075ddb3',
+    'measurementId': 'G-9R1FLR46E7'
+}
+fcm_key = 'AAAAnrlPFUo:APA91bEqLrFVP9JgERmPsYVJdRn3adZM5qDtvICMKzfyq6LvOqJIZz_PBNXxSGLRG8gSEElNQgcFCQoMhjbvBTLZWqKeLZi49vto-dv43zu0Bpx0WU6_HuDnSe3WpeuayITI8h2SuPkZ'
+
+
+class FirebaseUserViewSet(viewsets.ModelViewSet):
+    queryset = FirebaseUser.objects.all()
+    serializer_class = FirebaseUserSerializer
+    permission_classes = (ActionBasedPermission,)
+    action_permissions = {
+        IsAdminUser: ['retrieve', 'list'],
+        IsAuthenticated: ['create']
+    }
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user, **serializer.validated_data)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -140,6 +170,22 @@ class PaymentViewSet(viewsets.GenericViewSet,
         self.perform_create(serializer, from_user=from_user, to_user=to_user)
         headers = self.get_success_headers(data)
         send_donation_notification_email(receiver, serializer.data)
+
+        #  fix later
+
+        if receiver.settings.pop_up_is_enabled:
+            data = {
+                      'notification': {
+                        'title': 'DonutSender',
+                        'body': 'You have donate'
+                      },
+                      'to': receiver.firebaseuser.firebase_token
+                    }
+            requests.post('https://fcm.googleapis.com/fcm/send',
+                          headers={'Content-Type': 'application/json',
+                                   'Authorization': 'key={}'.format(fcm_key)},
+                          data=data)
+
         # ser_data = self.get_serializer_class()(instance).data
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 

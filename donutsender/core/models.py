@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import DO_NOTHING
+from django.db.models import DO_NOTHING, CASCADE
 from django.utils.translation import gettext as _
 
 from donutsender.core.helpers.base_model import BaseModel
@@ -27,6 +27,14 @@ class User(AbstractUser, BaseModel):
 
     def __str__(self):
         return self.username
+
+
+class FirebaseUser(BaseModel):
+    firebase_token = models.CharField(max_length=1000, unique=True, null=True, blank=True)
+    user = models.OneToOneField('User', on_delete=CASCADE)
+
+    def __str__(self):
+        return f'{self.user.username}\'s firebase token'
 
 
 class PaymentPage(BaseModel):

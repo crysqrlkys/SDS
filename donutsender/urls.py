@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework import routers
 from rest_auth.registration.views import RegisterView
+from rest_framework import routers
 from rest_auth.views import LogoutView, LoginView
 
 from donutsender.core import views
@@ -12,6 +12,7 @@ router.register(r'donate', views.PaymentViewSet)
 router.register(r'd', views.PaymentPageViewSet)
 router.register(r'withdraw', views.WithdrawalViewSet)
 router.register(r'settings', views.SettingsViewSet)
+router.register(r'firebase', views.FirebaseUserViewSet)
 
 auth_patterns = [
     path('register/', RegisterView.as_view()),

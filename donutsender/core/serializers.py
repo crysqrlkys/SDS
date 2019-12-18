@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from donutsender.core.models import User, CashRegister, Payment, PaymentPage, Withdrawal, Settings
+from donutsender.core.models import User, CashRegister, Payment, PaymentPage, Withdrawal, Settings, FirebaseUser
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -118,3 +118,9 @@ class SettingsSerializer(serializers.ModelSerializer):
             'user': {'read_only': True},
             'id': {'read_only': True},
         }
+
+
+class FirebaseUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FirebaseUser
+        fields = ('firebase_token',)
