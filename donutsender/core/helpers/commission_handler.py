@@ -40,10 +40,10 @@ class CommissionHandler:
             converter = CurrencyConverter()
             money = converter.convert(money, user_currency, usd)
 
-        money_after_commission_charge = money - (money * Decimal(0.05))
+        if money < 5:
+            return False
 
-        if money_after_commission_charge >= 5:
-            self.commission_charge(money, old_money=money_in_user_currency)
-            send_withdrawal_notification_email(users_payment_page, money_in_user_currency * (1 - self.percent))
-            return True
-        return False
+        self.commission_charge(money, old_money=money_in_user_currency)
+        send_withdrawal_notification_email(users_payment_page, money_in_user_currency * (1 - self.percent))
+        return True
+
