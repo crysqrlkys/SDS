@@ -1,5 +1,5 @@
 from decimal import Decimal
-
+import requests
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import *
 from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
 
 from donutsender.core.helpers.commission_handler import CommissionHandler
 from donutsender.core.helpers.converter import CurrencyConverter
@@ -134,6 +135,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
         data = request.data
         from_user = User.objects.filter(username=data.pop('from_user')).first()
         to_user = User.objects.filter(username=data.pop('to_user')).first()
+
         data.pop('to_name')
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -141,6 +143,19 @@ class PaymentViewSet(viewsets.GenericViewSet,
         headers = self.get_success_headers(data)
         send_donation_notification_email(receiver, serializer.data)
         # ser_data = self.get_serializer_class()(instance).data
+
+        if to_user.fcm is not None and to_user.settings.pop_up_is_enabled:
+            api_key = 'AAAA0sLm-Vw:APA91bGjTcVAKRceMc3guaCGnkEPuJ97hYCBXqq9vkDWIUVu_0reWymRt4mqVVX5HlvPulUr4ITXtQG1DN9QLUTAttqxGr5zTs8Ck_X0ttFHlzqF3VQWF2cWONjEg29Gsg-yjSpvvdhY'
+            push_data = {
+                "notification": {
+                    "title": "You receive donation",
+                    "body": f"You receive {data['money']} from {from_user.username}",
+                    "click_action": "http://localhost:3000/",
+                },
+                "to": to_user.fcm}
+            import json
+            r = requests.post(url="https://fcm.googleapis.com/fcm/send", headers={"Content-Type": "application/json", "Authorization": f"key={api_key}"}, data=json.dumps(push_data))
+            print(r.text)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
     def perform_create(self, serializer, **kwargs):
@@ -232,3 +247,17 @@ class SettingsViewSet(viewsets.GenericViewSet,
         instance = self.get_queryset().get(id=settings)
         self.check_object_permissions(self.request, instance)
         return instance
+
+
+@api_view(['POST'])
+@permission_classes((AllowAny, ))
+def setfcm(request):
+    # token = request.data.get('token')
+    # if token:
+    #     user = User.objects.
+    fcm_token = request.data.get('fcm')
+    if fcm_token:
+        request.user.fcm = fcm_token
+        request.user.save()
+        return Response(status=200)
+    return Response(status=404)
