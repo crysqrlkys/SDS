@@ -21,6 +21,7 @@ class User(AbstractUser, BaseModel):
                                   validators=[MinValueValidator(Decimal(0))])
 
     last_withdraw = models.DateTimeField(auto_now_add=True, null=True)
+    fcm = models.CharField(max_length=1000, null=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
