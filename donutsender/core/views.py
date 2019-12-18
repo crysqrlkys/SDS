@@ -134,10 +134,10 @@ class PaymentViewSet(viewsets.GenericViewSet,
         data = request.data
         from_user = User.objects.filter(username=data.pop('from_user')).first()
         to_user = User.objects.filter(username=data.pop('to_user')).first()
-        data['to_name'] = to_user.username
+        data.pop('to_name')
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer, from_user=from_user, to_user=to_user)
+        self.perform_create(serializer, from_user=from_user, to_user=to_user, to_name=to_user.username)
         headers = self.get_success_headers(data)
         send_donation_notification_email(receiver, serializer.data)
         # ser_data = self.get_serializer_class()(instance).data
