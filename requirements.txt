@@ -26,7 +26,7 @@ kombu==4.6.7
 more-itertools==8.0.2
 oauthlib==3.1.0
 Pillow==9.0.1
-protobuf==3.15.0
+protobuf==3.18.3
 pyasn1==0.4.8
 pyasn1-modules==0.2.7
 python-crontab==2.4.0
